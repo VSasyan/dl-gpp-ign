@@ -32,8 +32,7 @@ const converter = proj4("EPSG:2154");
 var map, key;
 
 
-document.addEventListener("DOMContentLoaded", function (event) {
-
+document.addEventListener("DOMContentLoaded", function () {
     // Création du crs_2154
     var crs_2154 = new L.Proj.CRS('EPSG:2154', proj4_2154, {
         resolutions: resolutions,
@@ -50,7 +49,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     // Création et ajout des fonds de carte en 2154
-    var orthoImage = L.tileLayer('https://wxs.ign.fr/lambert93/geoportail/wmts?layer={layer}&style=normal&tilematrixset=LAMB93&Service=WMTS&Request=GetTile&VERSION=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', {
+    var orthoImage = L.tileLayer('https://wxs.ign.fr/lambert93/geoportail/wmts?layer={layer}&style=normal&tilematrixset=LAMB93&Service=WMTS&Request=GetTile&VERSION=1.0.0&form_divat=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', {
         layer: "ORTHOIMAGERY.ORTHOPHOTOS.BDORTHO.L93",
         continuousWorld: true,
     }).addTo(map);
@@ -72,25 +71,30 @@ document.addEventListener("DOMContentLoaded", function (event) {
         console.log("You clicked the map at: [" + coord.lat + ", " + coord.lng + "]");
     });
 
-    document.getElementById('form').addEventListener('submit', listData);
+    document.getElementById('form_div').addEventListener('submit', listData);
 
 });
 
 function listData(e) {
     e.preventDefault();
-    // On affiche loading
-    document.getElementById("loading").style.display = "block";
-    // On masque form
-    document.getElementById("form").style.display = "none";
+    // On affiche la div de chargement
+    document.getElementById("loading_div").style.display = "block";
+    // On masque les div d'erreur et de formulaire
+    document.getElementById("form_div").style.display = "none";
+    document.getElementById("key_error_div").style.display = "none";
     // Récupération de la clé et du type de données demandées
-    key = document.getElementById('key').value;
+    key = document.getElementById('key_input').value;
+    document.getElementById('key_span').textContent = key;
     var dataType = document.getElementById('dataType').value.toLowerCase();
-    console.log(key, dataType);
 
     // getFeature info
     fetch(`https://wxs.ign.fr/${key}/telechargement/prepackage?request=GetCapabilities`)
         .then(function (response) {
-            return response.text();
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw Error(response.statusText);
+            }
         })
         .then(function (xml) {
             // On parse le document XML
@@ -100,7 +104,7 @@ function listData(e) {
             // Récupération des ressources LidarHD
             var lidarHdResources = get_resources(data, dataType);
             // On affiche text
-            document.getElementById("text").style.display = "block";
+            document.getElementById("text_div").style.display = "block";
             document.getElementById("nb_dalles").textContent = `${lidarHdResources.length}`;
 
             // Création du dallage
@@ -108,8 +112,17 @@ function listData(e) {
 
             // Ajout du dallage
             add_dallage(dallage);
+        })
+        .catch(function() {
+            // On affiche les div de formulaire et d'erreur, on masque celle de dalle et de text
+            document.getElementById("form_div").style.display = "block";
+            document.getElementById("key_error_div").style.display = "block";
+            document.getElementById("dalle_div").style.display = "none";
+            document.getElementById("text_div").style.display = "none";
+
+        }).finally(function () {
             // On masque loading
-            document.getElementById("loading").style.display = "none";
+            document.getElementById("loading_div").style.display = "none";
         })
         ;
 }
@@ -119,7 +132,6 @@ function get_resources(data, dataType) {
     // Récupération des ressources LidarHD
     var lidarHdResources = [];
     var resources = data.getElementsByTagName("Resources")[0].getElementsByTagName("Resource");
-    console.log(resources.length);
     for (let resource of resources) {
         var keyValue = {};
         for (let child of resource.childNodes) {
@@ -202,7 +214,6 @@ function add_dallage(dallage) {
         }
     }).addTo(map);
     // Set view
-    console.log(geojson.getBounds());
     map.fitBounds(geojson.getBounds());
     return geojson;
 }
@@ -235,19 +246,25 @@ function resetHighlightFeature(e) {
     show_popup(layer, "close");
 }
 function clickFeature(e) {
-    // On affiche loading
-    document.getElementById("loading").style.display = "block";
-    // On masque dalle
-    document.getElementById("dalle").style.display = "none";
+    // On affiche la div de chargement
+    document.getElementById("loading_div").style.display = "block";
+    // On masque la div de dalle
+    document.getElementById("dalle_div").style.display = "none";
     // On récupère l'élément cliqué
     var layer = e.target;
     var name = layer.feature["properties"].name;
     var match = REGEX_X_Y.exec(name);
     document.getElementById("name").textContent = match[0];
+    // Url de la requête pour récupérer les détails de la ressource
     var url = `https://wxs.ign.fr/${key}/telechargement/prepackage/${name}`;
+    // Requête
     fetch(url)
         .then(function (response) {
-            return response.text();
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw Error(response.statusText);
+            }
         })
         .then(function (xml) {
             // On parse le document XML
@@ -260,10 +277,20 @@ function clickFeature(e) {
             // Affichage des fichiers
             show_files(files, url);
 
-            // On monte dalle
-            document.getElementById("dalle").style.display = "block";
-            // On masque loading
-            document.getElementById("loading").style.display = "none";
+            // On monte la div dalle
+            document.getElementById("dalle_div").style.display = "block";
+            // On masque la div de chargement
+            document.getElementById("loading_div").style.display = "none";
+        })
+        .catch(function() {
+            // On affiche les div de formulaire et d'erreur, on masque celle de dalle et de text
+            document.getElementById("form_div").style.display = "block";
+            document.getElementById("key_error_div").style.display = "block";
+            document.getElementById("dalle_div").style.display = "none";
+            document.getElementById("text_div").style.display = "none";
+        }).finally(function () {
+            // On masque la div de chargement
+            document.getElementById("loading_div").style.display = "none";
         })
         ;
 }

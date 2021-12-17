@@ -1,0 +1,3 @@
+body, html { padding: 0; margin: 0; height: 100%; }
+.full-screen  { min-height: 100%; }
+ul#files>li>span.size {margin-left: 1em;}

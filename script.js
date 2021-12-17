@@ -1,6 +1,8 @@
 // Paramètres
 const REGEX_X_Y = new RegExp('([0-9]{4})_([0-9]{4})');
-// const REGEX_DEP = new RegExp('D[0-9AB]{3}'); // TODO : R93, R94, R01-06, FRA, FRX, FXX, GLP, MTQ, SBA, SMA, MYT, REU, SPM, GUF
+const REGEX_DEP = new RegExp('D[0-9AB]{3}');
+const REGEX_REGION = new RegExp('R([0-9]{2})')
+const REGEX_CODE = new RegExp('((FRA)|(FRX)|(FXX)|(GLP)|(MTQ)|(SBA)|(SMA)|(MYT)|(REU)|(SPM)|(GUF))')
 const SIZE = 2000;
 const DESIGN = {
     "base": {
@@ -32,8 +34,7 @@ const converter = proj4("EPSG:2154");
 var map, key;
 
 
-document.addEventListener("DOMContentLoaded", function (event) {
-
+document.addEventListener("DOMContentLoaded", function () {
     // Création du crs_2154
     var crs_2154 = new L.Proj.CRS('EPSG:2154', proj4_2154, {
         resolutions: resolutions,
@@ -103,16 +104,20 @@ function listData(e) {
             var data = parser.parseFromString(xml, "text/xml");
 
             // Récupération des ressources LidarHD
-            var lidarHdResources = get_resources(data, dataType);
+            var resources = get_resources(data, dataType);
             // On affiche text
             document.getElementById("text_div").style.display = "block";
-            document.getElementById("nb_dalles").textContent = `${lidarHdResources.length}`;
 
             // Création du dallage
-            var dallage = create_dallage(lidarHdResources);
+            var dallage = create_dallage(resources);
 
             // Ajout du dallage
-            add_dallage(dallage);
+            document.getElementById("nb_dalles").textContent = `${dallage.features.length}`;
+            if (dallage.features.length) {
+                add_dallage(dallage);
+            } else {
+                console.log("No resource to add.");
+            }
         })
         .catch(function() {
             // On affiche les div de formulaire et d'erreur, on masque celle de dalle et de text
@@ -170,36 +175,75 @@ function create_dallage(resources) {
     }
 
     for (let resource of resources) {
-        var match_x_y = REGEX_X_Y.exec(resource.name);
-        if (match_x_y) {
-            var x_min = parseInt(match_x_y[1]) * 1000;
-            var y_max = parseInt(match_x_y[2]) * 1000;
-            var x_max = x_min + SIZE;
-            var y_min = y_max - SIZE;
+        // Try to get geometry
+        var geometry = get_geometry(resource.name);
 
+        // If ok, Add geometry to list
+        if (geometry) {
             dallage["features"].push({
                 "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            // on change la projection les coordonnées
-                            converter.inverse([x_min, y_min]),
-                            converter.inverse([x_max, y_min]),
-                            converter.inverse([x_max, y_max]),
-                            converter.inverse([x_min, y_max]),
-                            converter.inverse([x_min, y_min]),
-                        ]
-                    ]
-                },
+                "geometry": geometry,
                 "properties": resource,
             });
-        } else {
-            console.error(resource.name);
         }
     }
-
     return dallage;
+}
+
+function get_geometry(name) {
+    // Try to get geometry
+    var coordinates = null;
+    // According several methods
+    var match_x_y = REGEX_X_Y.exec(name);
+    var match_dep = REGEX_DEP.exec(name);
+    var match_region = REGEX_REGION.exec(name);
+    var match_code = REGEX_CODE.exec(name);
+    console.info(name);
+
+    if (match_x_y) {
+        // X Y works!
+        var x_min = parseInt(match_x_y[1]) * 1000;
+        var y_max = parseInt(match_x_y[2]) * 1000;
+        var x_max = x_min + SIZE;
+        var y_min = y_max - SIZE;
+        coordinates = [
+            [
+                // on change la projection les coordonnées
+                converter.inverse([x_min, y_min]),
+                converter.inverse([x_max, y_min]),
+                converter.inverse([x_max, y_max]),
+                converter.inverse([x_min, y_max]),
+                converter.inverse([x_min, y_min]),
+            ]
+        ];
+    } else if (match_dep) {
+        // Dep works!
+        var dep = match_dep[0];
+        return dep_geom[dep];
+    } else if (match_region) {
+        // Region works!
+        var region = match_region[0];
+        return region_geom[region];
+    } else if (match_code) {
+        // Code works!
+        var code = match_code[0];
+        return code_geom[code];
+    } else {
+        console.error(name);
+    }
+
+    // Create geometry
+    if (coordinates) {
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": coordinates,
+            },
+            "properties": resource,
+        };
+    }
+    return null;
 }
 
 function add_dallage(dallage) {

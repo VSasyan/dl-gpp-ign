@@ -1,5 +1,6 @@
 // Paramètres
-const REGEX = new RegExp('([0-9]{4})_([0-9]{4})');
+const REGEX_X_Y = new RegExp('([0-9]{4})_([0-9]{4})');
+// const REGEX_DEP = new RegExp('D[0-9AB]{3}'); // TODO : R93, R94, R01-06, FRA, FRX, FXX, GLP, MTQ, SBA, SMA, MYT, REU, SPM, GUF
 const SIZE = 2000;
 const DESIGN = {
     "base": {
@@ -83,7 +84,7 @@ function listData(e) {
     document.getElementById("form").style.display = "none";
     // Récupération de la clé et du type de données demandées
     key = document.getElementById('key').value;
-    var dataType = document.getElementById('dataType').value;
+    var dataType = document.getElementById('dataType').value.toLowerCase();
     console.log(key, dataType);
 
     // getFeature info
@@ -156,29 +157,33 @@ function create_dallage(resources) {
     }
 
     for (let resource of resources) {
-        var match = REGEX.exec(resource.name);
-        var x_min = parseInt(match[1]) * 1000;
-        var y_max = parseInt(match[2]) * 1000;
-        var x_max = x_min + SIZE;
-        var y_min = y_max - SIZE;
+        var match_x_y = REGEX_X_Y.exec(resource.name);
+        if (match_x_y) {
+            var x_min = parseInt(match_x_y[1]) * 1000;
+            var y_max = parseInt(match_x_y[2]) * 1000;
+            var x_max = x_min + SIZE;
+            var y_min = y_max - SIZE;
 
-        dallage["features"].push({
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        // on change la projection les coordonnées
-                        converter.inverse([x_min, y_min]),
-                        converter.inverse([x_max, y_min]),
-                        converter.inverse([x_max, y_max]),
-                        converter.inverse([x_min, y_max]),
-                        converter.inverse([x_min, y_min]),
+            dallage["features"].push({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            // on change la projection les coordonnées
+                            converter.inverse([x_min, y_min]),
+                            converter.inverse([x_max, y_min]),
+                            converter.inverse([x_max, y_max]),
+                            converter.inverse([x_min, y_max]),
+                            converter.inverse([x_min, y_min]),
+                        ]
                     ]
-                ]
-            },
-            "properties": resource,
-        })
+                },
+                "properties": resource,
+            });
+        } else {
+            console.error(resource.name);
+        }
     }
 
     return dallage;
@@ -208,7 +213,7 @@ function show_popup(layer, type = "open") {
     var dalle_names = dalle_name.split("$");
     var title = dalle_names[0];
     var text = dalle_names[1];
-    template = `<center><h4>${title}</h4><p>${text}</p></center>`
+    template = `<h6>${title}</h6><p>${text}</p>`
 
     if (type == "open") {
         layer.bindPopup(template).openPopup()
@@ -237,7 +242,7 @@ function clickFeature(e) {
     // On récupère l'élément cliqué
     var layer = e.target;
     var name = layer.feature["properties"].name;
-    var match = REGEX.exec(name);
+    var match = REGEX_X_Y.exec(name);
     document.getElementById("name").textContent = match[0];
     var url = `https://wxs.ign.fr/${key}/telechargement/prepackage/${name}`;
     fetch(url)

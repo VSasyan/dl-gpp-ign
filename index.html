@@ -24,12 +24,12 @@
         <div id="map" class="full-screen col-9"></div>
         <div id="side" class="col-3">
             <h1>Téléchargement IGN</h1>
-            <div id="form">
+            <div id="form_div">
                 <h3>Affichage des données disponibles</h3>
                 <form>
                     <div class="form-group">
-                        <label for="key">Entrez votre clé pour continuer !</label>
-                        <input type="text" class="form-control" id="key" aria-describedby="emailHelp" placeholder="Entrez votre clé">
+                        <label for="key_input">Entrez votre clé pour continuer !</label>
+                        <input type="text" class="form-control" id="key_input" aria-describedby="emailHelp" placeholder="Entrez votre clé">
                     </div>
                     <div class="form-group">
                         <label for="dataType">Lister les données</label>
@@ -46,23 +46,29 @@
                             <option value="ORTHOHR">ORTHOHR</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">Afficher les données</button>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Afficher les données</button>
+                    </div>
                 </form>
             </div>
-            <div id="text" style="display: none;">
+            <div id="text_div" style="display: none;" class="mt-4">
                 <h3><span id="nb_dalles"></span> dalles trouvées</h3>
                 <p>Cliquez sur une dalle pour afficher les données à télécharger...</p>
             </div>
-            <div id="dalle" style="display: none;">
+            <div id="dalle_div" style="display: none;" class="mt-4">
                 <h3>Dalle <span id="name"></span></h3>
                 <p>Fichiers disponibles :</p>
                 <ul id="files"></ul>
             </div>
-            <div id="loading" style="display: none;">
+            <div id="loading_div" style="display: none;" class="mt-4">
                 <h3>Chargement...</h3>
                 <div class="progress">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
                 </div>
+            </div>
+            <div id="key_error_div" style="display: none;" class="mt-4">
+                <h3>Clé invalide !</h3>
+                <p>La clé <span id="key_span"></span> n'est pas valide ou n'a pas les droits requis.</p>
             </div>
         </div>
     </div>
